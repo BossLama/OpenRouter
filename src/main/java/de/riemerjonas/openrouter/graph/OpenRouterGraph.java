@@ -19,10 +19,10 @@ public class OpenRouterGraph
     private static final String TAG = "OpenRouterGraph";
     private static final double TILE_SIZE = 0.1;
 
-    private ArrayList<OpenRouterEdge> edges;
+    private List<OpenRouterEdge> edges;
     private HashMap<TileCoordinates, List<OpenRouterNode>> tileMap;
 
-    public OpenRouterGraph(ArrayList<OpenRouterEdge> edges,HashMap<TileCoordinates, List<OpenRouterNode>> tileMap)
+    public OpenRouterGraph(List<OpenRouterEdge> edges,HashMap<TileCoordinates, List<OpenRouterNode>> tileMap)
     {
         this.edges = edges;
         this.tileMap = tileMap;
@@ -33,17 +33,23 @@ public class OpenRouterGraph
         return tileMap;
     }
 
-    public ArrayList<OpenRouterEdge> getEdges()
+    public List<OpenRouterEdge> getEdges()
     {
         return edges;
     }
 
     public void save(File file)
     {
-        ORGraphSaver.save(this);
+        OpenRouterLog.i(TAG, "Saving graph to file: " + file.getAbsolutePath());
+        ORGraphSaver.save(this, file);
     }
 
 
+    public static OpenRouterGraph loadFromFile(File file)
+    {
+        OpenRouterLog.i(TAG, "Loading graph from file: " + file.getAbsolutePath());
+        return ORGraphSaver.load(file);
+    }
 
     /**
      * Builds a graph from a PBF file.
@@ -119,7 +125,7 @@ public class OpenRouterGraph
         return null;
     }
 
-    public static record TileCoordinates(int x, int y) {}
+    public static record TileCoordinates(short x, short y) {}
 
     /**
      * Converts a list of OpenRouterNode objects to a tile map.
@@ -131,8 +137,8 @@ public class OpenRouterGraph
         HashMap<TileCoordinates, List<OpenRouterNode>> tileMap = new HashMap<>();
         for(OpenRouterNode node : nodes)
         {
-            int x = (int) ((node.getLatitudeDouble()) / TILE_SIZE);
-            int y = (int) ((node.getLongitudeDouble()) / TILE_SIZE);
+            short x = (short) ((node.getLatitudeDouble()) / TILE_SIZE);
+            short y = (short) ((node.getLongitudeDouble()) / TILE_SIZE);
             TileCoordinates tile = new TileCoordinates(x, y);
             tileMap.computeIfAbsent(tile, k -> new ArrayList<>()).add(node);
             OpenRouterLog.i(TAG, "Adding node " + node.getId() + " to tile " + x + ", " + y);
