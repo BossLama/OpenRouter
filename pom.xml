@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>de.riemerjonas</groupId>
+    <artifactId>OpenRouter</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>topobyte</id>
+            <url>https://mvn.topobyte.de/</url>
+        </repository>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>  <!-- Verwende Maven Central -->
+        </repository>
+        <repository>
+            <id>slimjars</id>
+            <url>https://mvn.slimjars.com/</url>
+        </repository>
+    </repositories>
+
+
+    <dependencies>
+        <!-- OSM4J dependencies -->
+        <dependency>
+            <groupId>de.topobyte</groupId>
+            <artifactId>osm4j-core</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>de.topobyte</groupId>
+            <artifactId>osm4j-pbf</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+
+        <!-- Trove4J dependency -->
+        <dependency>
+            <groupId>net.sf.trove4j</groupId>
+            <artifactId>trove4j</artifactId>
+            <version>3.0.3</version>
+            <scope>system</scope>
+            <systemPath>C:/java/libs/trove4j-3.0.3.jar</systemPath>
+        </dependency>
+
+        <!-- Common io dependency -->
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.15.1</version>
+        </dependency>
+
+        <!-- Google Protobuf dependency -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>4.28.2</version>
+        </dependency>
+
+        <!-- SlimJars dependencies -->
+        <dependency>
+            <groupId>com.slimjars.trove4j</groupId>
+            <artifactId>trove4j-long-array-list</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.slimjars.trove4j</groupId>
+            <artifactId>trove4j-long-hash-set</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.slimjars.trove4j</groupId>
+            <artifactId>trove4j-long-object-hash-map</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.slimjars.trove4j</groupId>
+            <artifactId>trove4j-object-int-hash-map</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+    </dependencies>
+</project>
