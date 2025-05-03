@@ -1,100 +1,103 @@
 package de.riemerjonas.openrouter.core;
 
-import java.io.File;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 
-public class OpenRouterLog
-{
-    private static File LOG_FILE = new File("openrouter.log");
-    private static boolean ENABLE_FILE_LOGGING = false;
-    private static boolean ENABLE_CONSOLE_LOGGING = true;
+public class OpenRouterLog {
+
+    private static LogLevel logLevel = LogLevel.INFO;
 
     /**
-     * Enables or disables file logging.
-     * @param enableFileLogging true to enable file logging, false to disable it.
+     * Set the log level for the logger.
+     * @param level The log level to set
      */
-    public static void setEnableFileLogging(boolean enableFileLogging)
+    public static void setLogLevel(LogLevel level)
     {
-        ENABLE_FILE_LOGGING = enableFileLogging;
+        logLevel = level;
     }
 
     /**
-     * Enables or disables console logging.
-     * @param enableConsoleLogging true to enable console logging, false to disable it.
+     * Get the formatted timestamp for the log message.
+     * @return The formatted timestamp
      */
-    public static void setEnableConsoleLogging(boolean enableConsoleLogging)
+    private static String getTimestamp()
     {
-        ENABLE_CONSOLE_LOGGING = enableConsoleLogging;
+        return new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis());
     }
 
     /**
-     * Sets the log file to the given file.
-     * @param logFile The file to set as the log file.
+     * Return the prefix for the log message.
+     * @param tag The tag for the log message
+     * @param type The type of the log message (INFO, ERROR, etc.)
+     * @return The formatted prefix for the log message
      */
-    public static void setLogFile(File logFile)
+    private static String getPrefix(String tag, String type)
     {
-        LOG_FILE = logFile;
+        return String.format("[%s] [%s] [%s] ", getTimestamp(), type, tag);
     }
 
     /**
-     * Gets the log file.
-     * @return The log file.
+     * Format the log message with the given tag, type, and message.
+     * @param tag The tag for the log message
+     * @param type The type of the log message (INFO, ERROR, etc.)
+     * @param message The message to log
+     * @return The formatted log message
      */
-    public static File getLogFile()
+    private static String formatLogMessage(String tag, String type, String message)
     {
-        return LOG_FILE;
+        return getPrefix(tag, type) + message;
     }
 
     /**
-     * Logs a message with the given tag and level.
-     * @param tag The tag to log with.
-     * @param message The message to log.
+     * Log an info message.
+     * @param tag The tag for the log message
+     * @param message The message to log
      */
-    public static void i(String tag, String message)
+    public static void info(String tag, String message)
     {
-        String time = new SimpleDateFormat("HH:mm:ss").format(new Date());
-        String prefix = String.format("%s [INFO] [%s] ", time, tag);
-        String logMessage = prefix + message;
-        if (ENABLE_CONSOLE_LOGGING) System.out.println(logMessage);
-        if (ENABLE_FILE_LOGGING)
+        if (logLevel.getLevel() > LogLevel.INFO.getLevel()) return;
+        System.out.println(formatLogMessage(tag, "INFO", message));
+    }
+
+    /**
+     * Log an error message.
+     * @param tag The tag for the log message
+     * @param message The message to log
+     */
+    public static void error(String tag, String message)
+    {
+        if (logLevel.getLevel() > LogLevel.ERROR.getLevel()) return;
+        System.err.println(formatLogMessage(tag, "ERROR", message));
+    }
+
+    /**
+     * Log a warning message.
+     * @param tag The tag for the log message
+     * @param message The message to log
+     */
+    public static void warn(String tag, String message)
+    {
+        if (logLevel.getLevel() > LogLevel.WARN.getLevel()) return;
+        System.err.println(formatLogMessage(tag, "WARN", message));
+    }
+
+    /**
+     * An enum representing the log levels.
+     */
+    public enum LogLevel
+    {
+        INFO(0),
+        WARN(1),
+        ERROR(2);
+
+        private final int level;
+        LogLevel(int level)
         {
-            try
-            {
-                java.nio.file.Files.writeString(LOG_FILE.toPath(), logMessage + "\n", java.nio.file.StandardOpenOption.APPEND);
-            }
-            catch (Exception e)
-            {
-                System.err.println("Failed to write to log file: " + e.getMessage());
-            }
+            this.level = level;
+        }
+
+        public int getLevel()
+        {
+            return level;
         }
     }
-
-    /**
-     * Logs a message with the given tag and level.
-     * @param tag The tag to log with.
-     * @param message The message to log.
-     */
-    public static void e(String tag, String message)
-    {
-        String time = new SimpleDateFormat("HH:mm:ss").format(new Date());
-        String prefix = String.format("%s [ERRO] [%s] ", time, tag);
-        String logMessage = prefix + message;
-        if (ENABLE_CONSOLE_LOGGING) System.err.println(logMessage);
-        if (ENABLE_FILE_LOGGING)
-        {
-            try
-            {
-                java.nio.file.Files.writeString(LOG_FILE.toPath(), logMessage + "\n", java.nio.file.StandardOpenOption.APPEND);
-            }
-            catch (Exception e)
-            {
-                System.err.println("Failed to write to log file: " + e.getMessage());
-            }
-        }
-    }
-
-
-
-
 }

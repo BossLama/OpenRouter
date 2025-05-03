@@ -1,14 +1,10 @@
 package de.riemerjonas.openrouter.graph;
 
-import de.riemerjonas.openrouter.compressor.Compressor;
-import de.riemerjonas.openrouter.core.OpenRouterEdge;
-import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
-import de.topobyte.osm4j.core.access.OsmIterator;
-import de.topobyte.osm4j.core.model.iface.*;
-import de.topobyte.osm4j.pbf.seq.PbfIterator;
+import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouteAlgorithm;
+import de.riemerjonas.openrouter.graph.core.ORGraphBuilder;
 
-import java.io.*;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,136 +13,124 @@ import java.util.Map;
 public class OpenRouterGraph
 {
     private static final String TAG = "OpenRouterGraph";
-    private static final double TILE_SIZE = 0.1;
+    public static final double TILE_SIZE = 0.01;
+    private Map<TileMapCoordinate, Map<Long, OpenRouterNode>> tileNodeMap;
 
-    private List<OpenRouterEdge> edges;
-    private HashMap<TileCoordinates, List<OpenRouterNode>> tileMap;
 
-    public OpenRouterGraph(List<OpenRouterEdge> edges,HashMap<TileCoordinates, List<OpenRouterNode>> tileMap)
+    public OpenRouterGraph(Map<TileMapCoordinate, Map<Long, OpenRouterNode>> tileNodeMap)
     {
-        this.edges = edges;
-        this.tileMap = tileMap;
-    }
-
-    public HashMap<TileCoordinates, List<OpenRouterNode>> getTileMap()
-    {
-        return tileMap;
-    }
-
-    public List<OpenRouterEdge> getEdges()
-    {
-        return edges;
-    }
-
-    public void save(File file)
-    {
-        OpenRouterLog.i(TAG, "Saving graph to file: " + file.getAbsolutePath());
-        ORGraphSaver.save(this, file);
-    }
-
-
-    public static OpenRouterGraph loadFromFile(File file)
-    {
-        OpenRouterLog.i(TAG, "Loading graph from file: " + file.getAbsolutePath());
-        return ORGraphSaver.load(file);
+        this.tileNodeMap = tileNodeMap;
     }
 
     /**
-     * Builds a graph from a PBF file.
-     * @param file The PBF file to read from.
-     * @return The OpenRouterGraph object.
+     * Get the tilemap
+     * @return The tilemap
      */
-    public static OpenRouterGraph buildFromPbf(File file)
+    public Map<TileMapCoordinate, Map<Long, OpenRouterNode>> getTileNodeMap()
     {
-        try
+        return tileNodeMap;
+    }
+
+    /**
+     * Get a node by its ID
+     * @param id The ID of the node
+     * @return The node with the given ID, or null if not found
+     */
+    public OpenRouterNode getNode(long id)
+    {
+        for (Map<Long, OpenRouterNode> tile : tileNodeMap.values())
         {
-            ArrayList<OpenRouterNode> nodes = new ArrayList<>();
-            ArrayList<OpenRouterEdge> edges = new ArrayList<>();
-
-            InputStream inputStream = new FileInputStream(file);
-            OsmIterator iterator = new PbfIterator(inputStream, false);
-
-            OpenRouterLog.i(TAG, "Reading PBF file: " + file.getAbsolutePath());
-            OpenRouterLog.i(TAG, "Fetching nodes from PBF file...");
-            for(EntityContainer container : iterator)
+            if (tile.containsKey(id))
             {
-                if(container.getType().equals(EntityType.Node))
-                {
-                    OsmNode node = (OsmNode) container.getEntity();
-                    OpenRouterNode openRouterNode = new OpenRouterNode(node.getId(), node.getLatitude(), node.getLongitude());
-                    nodes.add(openRouterNode);
-                    OpenRouterLog.i(TAG, "Fetching node " + node.getId());
-                }
+                return tile.get(id);
             }
-            OpenRouterLog.i(TAG, "Fetched " + nodes.size() + " nodes from PBF file.");
-
-            OpenRouterLog.i(TAG, "Fetching edges from PBF file...");
-            iterator = new PbfIterator(new FileInputStream(file), false);
-            for(EntityContainer container : iterator)
-            {
-                if(container.getType().equals(EntityType.Way))
-                {
-                    OsmWay way = (OsmWay) container.getEntity();
-                    boolean isHighway = false;
-                    for(int index = 0; index < way.getNumberOfTags(); index++)
-                    {
-                        OsmTag tag = way.getTag(index);
-                        if(tag.getKey().equals("highway"))
-                        {
-                            isHighway = true;
-                            break;
-                        }
-                    }
-                    if(!isHighway) continue;
-                    for (int i = 1; i < way.getNumberOfNodes(); i++) {
-                        long from = way.getNodeId(i - 1);
-                        long to = way.getNodeId(i);
-
-                        //TODO: Implement check if possible to get from from to to
-                        edges.add(new OpenRouterEdge(from, to));
-                        edges.add(new OpenRouterEdge(to, from));
-                        OpenRouterLog.i(TAG, "Fetching edge from " + from + " to " + to);
-                    }
-                }
-            }
-            OpenRouterLog.i(TAG, "Fetched " + edges.size() + " edges from PBF file.");
-
-            OpenRouterLog.i(TAG, "Building tile map...");
-            HashMap<TileCoordinates, List<OpenRouterNode>> tileMap = toTileMap(nodes);
-
-            return new OpenRouterGraph(edges, tileMap);
-
         }
-        catch (Exception e)
-        {
-            OpenRouterLog.e(TAG, "Error while building graph from PBF file: " + e.getMessage());
-        }
-
         return null;
     }
 
-    public static record TileCoordinates(short x, short y) {}
+    /**
+     * Get all nodes in the graph
+     * @return A list of all nodes in the graph
+     */
+    public ArrayList<OpenRouterNode> getAllNodes()
+    {
+        ArrayList<OpenRouterNode> allNodes = new ArrayList<>();
+        for (Map<Long, OpenRouterNode> tile : tileNodeMap.values())
+        {
+            allNodes.addAll(tile.values());
+        }
+        return allNodes;
+    }
+
+    public OpenRouterNode findClosestNode(double latitude, double longitude, double maxDistanceMeters)
+    {
+        TileMapCoordinate centerTile = OpenRouterGraph.getTileMapCoordinate(latitude, longitude);
+
+        OpenRouterNode closestNode = null;
+        double minDistance = Double.MAX_VALUE;
+
+        // Nachbarn durchsuchen (3x3 Grid: center + angrenzende Tiles)
+        for (short dx = -1; dx <= 1; dx++) {
+            for (short dy = -1; dy <= 1; dy++) {
+                TileMapCoordinate tile = new TileMapCoordinate(
+                        (short) (centerTile.x() + dx),
+                        (short) (centerTile.y() + dy)
+                );
+
+                Map<Long, OpenRouterNode> nodesInTile = tileNodeMap.get(tile);
+                if (nodesInTile == null) continue;
+
+                for (OpenRouterNode node : nodesInTile.values()) {
+                    double distance = node.getDistanceTo(latitude, longitude);
+                    if (distance < minDistance && distance <= maxDistanceMeters) {
+                        minDistance = distance;
+                        closestNode = node;
+                    }
+                }
+            }
+        }
+        return closestNode;
+    }
+
+    public List<Long> findRoute(
+            double startLat, double startLon,
+            double endLat, double endLon
+    ) {
+        return ORGraphRouteAlgorithm.findRoute(this, startLat, startLon, endLat, endLon);
+    }
 
     /**
-     * Converts a list of OpenRouterNode objects to a tile map.
-     * @param nodes The list of OpenRouterNode objects to convert.
-     * @return A HashMap where the keys are TileCoordinates and the values are lists of OpenRouterNode objects.
+     * Build a graph from a PBF file
+     * @param file The PBF file to read
+     * @return The graph built from the PBF file
      */
-    private static HashMap<TileCoordinates, List<OpenRouterNode>> toTileMap(List<OpenRouterNode> nodes)
+    public static OpenRouterGraph buildFromPbf(File file)
     {
-        HashMap<TileCoordinates, List<OpenRouterNode>> tileMap = new HashMap<>();
-        for(OpenRouterNode node : nodes)
-        {
-            short x = (short) ((node.getLatitudeDouble()) / TILE_SIZE);
-            short y = (short) ((node.getLongitudeDouble()) / TILE_SIZE);
-            TileCoordinates tile = new TileCoordinates(x, y);
-            tileMap.computeIfAbsent(tile, k -> new ArrayList<>()).add(node);
-            OpenRouterLog.i(TAG, "Adding node " + node.getId() + " to tile " + x + ", " + y);
-            OpenRouterLog.i(TAG, "Tile nodes: " + tileMap.get(tile).size());
-        }
-
-        return tileMap;
+        return ORGraphBuilder.buildFromPbf(file);
     }
+
+    /**
+     * A record to represent a tile map coordinate
+     * @param x Index of the tile in the x direction
+     * @param y Index of the tile in the y direction
+     */
+    public static record TileMapCoordinate(short x, short y){}
+
+    /**
+     * Get the tile map coordinate for a given latitude and longitude
+     * @param latitude Latitude of the coordinate
+     * @param longitude Longitude of the coordinate
+     * @return The tile map coordinate
+     */
+    public static TileMapCoordinate getTileMapCoordinate(double latitude, double longitude)
+    {
+        short x = (short) ((longitude + 180) / TILE_SIZE);
+        short y = (short) ((latitude + 90) / TILE_SIZE);
+        return new TileMapCoordinate(x, y);
+    }
+
+
+
 
 
 }
