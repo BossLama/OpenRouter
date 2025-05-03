@@ -1,10 +1,14 @@
 package de.riemerjonas.openrouter.graph;
 
+import de.riemerjonas.openrouter.core.OpenRouterBoundingBox;
+import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
 import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouteAlgorithm;
 import de.riemerjonas.openrouter.graph.core.ORGraphBuilder;
+import de.riemerjonas.openrouter.graph.core.ORGraphFileHandler;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -62,6 +66,13 @@ public class OpenRouterGraph
         return allNodes;
     }
 
+    /**
+     * Find the closest node to a given coordinate
+     * @param latitude Latitude of the coordinate
+     * @param longitude Longitude of the coordinate
+     * @param maxDistanceMeters Maximum distance in meters
+     * @return The closest node within the specified distance, or null if none found
+     */
     public OpenRouterNode findClosestNode(double latitude, double longitude, double maxDistanceMeters)
     {
         TileMapCoordinate centerTile = OpenRouterGraph.getTileMapCoordinate(latitude, longitude);
@@ -92,11 +103,73 @@ public class OpenRouterGraph
         return closestNode;
     }
 
+    /**
+     * Find a route between two coordinates
+     * @param startLat The latitude of the start point
+     * @param startLon The longitude of the start point
+     * @param endLat The latitude of the end point
+     * @param endLon The longitude of the end point
+     * @return A list of node IDs representing the route
+     */
     public List<Long> findRoute(
             double startLat, double startLon,
             double endLat, double endLon
     ) {
         return ORGraphRouteAlgorithm.findRoute(this, startLat, startLon, endLat, endLon);
+    }
+
+    /**
+     * Save the graph to a file
+     * @param file The file to save the graph to
+     */
+    public void save(File file)
+    {
+        try
+        {
+            ORGraphFileHandler.saveGraph(this, file);
+        }
+        catch (IOException e)
+        {
+            OpenRouterLog.error(TAG, "Error while saving graph: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load a graph from a file
+     * @param file The file to load the graph from
+     * @return The loaded graph
+     */
+    public static OpenRouterGraph load(File file)
+    {
+        try
+        {
+            return ORGraphFileHandler.loadFullGraph(file);
+        }
+        catch (IOException e)
+        {
+            OpenRouterLog.error(TAG, "Error while loading graph: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Load a graph from a PBF file
+     * @param file The PBF file to read
+     * @param boundingBox The bounding box to load
+     * @return The graph built from the PBF file
+     */
+    public static OpenRouterGraph load(File file, OpenRouterBoundingBox boundingBox)
+    {
+        try
+        {
+            return ORGraphFileHandler.loadGraph
+                    (file, boundingBox.getMinLat(), boundingBox.getMaxLat(), boundingBox.getMinLon(), boundingBox.getMaxLon());
+        }
+        catch (IOException e)
+        {
+            OpenRouterLog.error(TAG, "Error while loading graph from PBF: " + e.getMessage());
+            return null;
+        }
     }
 
     /**

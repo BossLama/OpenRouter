@@ -24,6 +24,21 @@ public class OpenRouterNode
         edges.add(edgeArray);
     }
 
+    public void addEdge(long[] edge)
+    {
+        edges.add(edge);
+    }
+
+
+    public void setEdges(List<long[]> edges)
+    {
+        this.edges.clear();
+        for (long[] edge : edges)
+        {
+            this.edges.add(edge);
+        }
+    }
+
     public void removeEdge(OpenRouterEdge edge)
     {
         long[] edgeArray = edge.getAsSlim();
