@@ -168,6 +168,7 @@ public class OpenRouterGraph
         catch (IOException e)
         {
             OpenRouterLog.error(TAG, "Error while loading graph from PBF: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }

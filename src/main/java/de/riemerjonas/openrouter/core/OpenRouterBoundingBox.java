@@ -14,10 +14,11 @@ public class OpenRouterBoundingBox {
     }
 
     public OpenRouterBoundingBox(OpenRouterGeoPoint min, OpenRouterGeoPoint max) {
-        this.minLat = min.getLatitude();
-        this.maxLat = max.getLatitude();
-        this.minLon = min.getLongitude();
-        this.maxLon = max.getLongitude();
+        // Sort the points to get the bounding box
+        this.minLat = Math.min(min.getLatitude(), max.getLatitude());
+        this.maxLat = Math.max(min.getLatitude(), max.getLatitude());
+        this.minLon = Math.min(min.getLongitude(), max.getLongitude());
+        this.maxLon = Math.max(min.getLongitude(), max.getLongitude());
     }
 
     public double getMinLat() {

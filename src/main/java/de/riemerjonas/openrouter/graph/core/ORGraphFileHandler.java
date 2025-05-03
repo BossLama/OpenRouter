@@ -1,5 +1,6 @@
 package de.riemerjonas.openrouter.graph.core;
 
+import de.riemerjonas.openrouter.core.OpenRouterCompressor;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
 import de.riemerjonas.openrouter.graph.OpenRouterGraph;
 
@@ -15,19 +16,36 @@ public class ORGraphFileHandler {
 
     public static void saveGraph(OpenRouterGraph graph, File file) throws IOException
     {
+        // A List of all nodes in the graph
+        HashMap<Long, Integer> nodeIdToIndex = new HashMap<>();
+        List<OpenRouterNode> allNodes = graph.getAllNodes();
+        for(OpenRouterNode node : allNodes)
+        {
+            nodeIdToIndex.put(node.getId(), nodeIdToIndex.size());
+        }
+
+
         try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file))))
         {
 
-            // Schreibe die Anzahl der Tiles
+            // Write the number of tiles
             out.writeInt(graph.getTileNodeMap().size());
 
-            // Durchlaufe die Tiles und speichere die Knoten und Kanten
+            // Write the nodeIdToIndex map
+            out.writeInt(nodeIdToIndex.size());
+            for (Map.Entry<Long, Integer> entry : nodeIdToIndex.entrySet())
+            {
+                out.writeLong(entry.getKey());
+                out.writeInt(entry.getValue());
+            }
+
+            // Write the tile coordinates and nodes
             for (Map.Entry<OpenRouterGraph.TileMapCoordinate, Map<Long, OpenRouterNode>> entry : graph.getTileNodeMap().entrySet())
             {
                 OpenRouterGraph.TileMapCoordinate tileCoord = entry.getKey();
                 Map<Long, OpenRouterNode> nodeMap = entry.getValue();
 
-                // Speichere Tile-Koordinaten (x, y)
+                // Speichere die Kachel-Koordinaten
                 out.writeShort(tileCoord.x());
                 out.writeShort(tileCoord.y());
 
@@ -37,19 +55,19 @@ public class ORGraphFileHandler {
                 // Speichere die Knoten und Kanten
                 for (OpenRouterNode node : nodeMap.values())
                 {
+
                     // Schreibe Knoten-ID, Latitude, Longitude
-                    out.writeLong(node.getId());
-                    out.writeDouble(node.getLatitude());
-                    out.writeDouble(node.getLongitude());
+                    out.writeInt(nodeIdToIndex.get(node.getId()));
+                    out.writeInt(OpenRouterCompressor.compressCoordinate(node.getLatitude()));
+                    out.writeInt(OpenRouterCompressor.compressCoordinate(node.getLongitude()));
 
                     // Schreibe Kanten des Knotens
                     List<long[]> edges = node.getEdgesAsList();
                     out.writeInt(edges.size()); // Anzahl der Kanten
-                    for (long[] edge : edges) {
-                        // Schreibe von Node ID, zu Node ID, Gewicht
-                        out.writeLong(edge[0]);
-                        out.writeLong(edge[1]);
-                        out.writeLong(edge[2]);
+                    for (long[] edge : edges)
+                    {
+                        out.writeInt(nodeIdToIndex.get(edge[1]));
+                        out.writeByte(OpenRouterCompressor.compressWeight(edge[2]));
                     }
                 }
             }
@@ -60,12 +78,22 @@ public class ORGraphFileHandler {
     public static OpenRouterGraph loadFullGraph(File file) throws IOException {
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
 
-            // Lies die Anzahl der Tiles
+            // Anzahl der Tiles lesen
             int numTiles = in.readInt();
+
+            // Lese die nodeIdToIndex Map (Rückwärts-Map wird erzeugt)
+            int numNodeIds = in.readInt();
+            Map<Integer, Long> indexToNodeId = new HashMap<>();
+            for (int i = 0; i < numNodeIds; i++) {
+                long nodeId = in.readLong();
+                int index = in.readInt();
+                indexToNodeId.put(index, nodeId);
+            }
+
             Map<OpenRouterGraph.TileMapCoordinate, Map<Long, OpenRouterNode>> tileNodeMap = new HashMap<>();
 
-            // Lade alle Tiles und ihre Knoten
-            for (int i = 0; i < numTiles; i++) {
+            // Tiles lesen
+            for (int t = 0; t < numTiles; t++) {
                 short x = in.readShort();
                 short y = in.readShort();
                 OpenRouterGraph.TileMapCoordinate tileCoord = new OpenRouterGraph.TileMapCoordinate(x, y);
@@ -73,93 +101,113 @@ public class ORGraphFileHandler {
                 int numNodes = in.readInt();
                 Map<Long, OpenRouterNode> nodeMap = new HashMap<>();
 
-                // Lade alle Knoten und ihre Kanten für dieses Tile
-                for (int j = 0; j < numNodes; j++) {
-                    long id = in.readLong();
-                    double latitude = in.readDouble();
-                    double longitude = in.readDouble();
-
-                    // Lade Kanten für den Knoten
-                    int numEdges = in.readInt();
-                    List<long[]> edges = new ArrayList<>();
-                    for (int k = 0; k < numEdges; k++) {
-                        long fromNodeId = in.readLong();
-                        long toNodeId = in.readLong();
-                        long weight = in.readLong();
-                        edges.add(new long[]{fromNodeId, toNodeId, weight});
+                // Nodes samt Kanten direkt lesen
+                for (int n = 0; n < numNodes; n++) {
+                    int nodeIndex = in.readInt();
+                    Long nodeId = indexToNodeId.get(nodeIndex);
+                    if (nodeId == null) {
+                        throw new IOException("Unbekannter nodeIndex: " + nodeIndex);
                     }
 
-                    OpenRouterNode node = new OpenRouterNode(id, latitude, longitude);
-                    for (long[] edge : edges) {
-                        node.addEdge(edge);
+                    double lat = OpenRouterCompressor.decompressCoordinate(in.readInt());
+                    double lon = OpenRouterCompressor.decompressCoordinate(in.readInt());
+
+                    OpenRouterNode node = new OpenRouterNode(nodeId, lat, lon);
+
+                    int edgeCount = in.readInt();
+                    for (int e = 0; e < edgeCount; e++) {
+                        int toIndex = in.readInt();
+                        int weightCompressed = in.readUnsignedByte();
+
+                        Long toId = indexToNodeId.get(toIndex);
+                        if (toId == null) {
+                            throw new IOException("Unbekannter Edge-Knotenindex: to=" + toIndex);
+                        }
+
+                        long weight = OpenRouterCompressor.decompressWeight((byte) weightCompressed);
+                        node.addEdge(new long[]{nodeId, toId, weight});
                     }
-                    nodeMap.put(id, node);
+
+                    nodeMap.put(nodeId, node);
                 }
 
                 tileNodeMap.put(tileCoord, nodeMap);
             }
 
-            // Rückgabe des vollständigen Graphen
             return new OpenRouterGraph(tileNodeMap);
         }
     }
 
 
-
     public static OpenRouterGraph loadGraph(File file, double minLat, double maxLat, double minLon, double maxLon) throws IOException {
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
 
-            // Lies die Anzahl der Tiles
+            // Anzahl der Tiles lesen
             int numTiles = in.readInt();
+
+            // Lese die nodeIdToIndex Map (Rückwärts-Map wird erzeugt)
+            int numNodeIds = in.readInt();
+            Map<Integer, Long> indexToNodeId = new HashMap<>();
+            for (int i = 0; i < numNodeIds; i++) {
+                long nodeId = in.readLong();
+                int index = in.readInt();
+                indexToNodeId.put(index, nodeId);
+            }
+
             Map<OpenRouterGraph.TileMapCoordinate, Map<Long, OpenRouterNode>> tileNodeMap = new HashMap<>();
 
-            // Lade nur die Tiles, die innerhalb der BoundingBox liegen
-            for (int i = 0; i < numTiles; i++) {
+            // Tiles lesen
+            for (int t = 0; t < numTiles; t++) {
                 short x = in.readShort();
                 short y = in.readShort();
                 OpenRouterGraph.TileMapCoordinate tileCoord = new OpenRouterGraph.TileMapCoordinate(x, y);
 
-                // Überprüfe, ob diese Kachel innerhalb der BoundingBox liegt
+                int numNodes = in.readInt();
+
                 if (isTileInBoundingBox(tileCoord, minLat, maxLat, minLon, maxLon)) {
-                    int numNodes = in.readInt();
                     Map<Long, OpenRouterNode> nodeMap = new HashMap<>();
 
-                    // Lade alle Knoten in dieser Kachel
-                    for (int j = 0; j < numNodes; j++) {
-                        long id = in.readLong();
-                        double latitude = in.readDouble();
-                        double longitude = in.readDouble();
-
-                        // Lade Kanten für den Knoten
-                        int numEdges = in.readInt();
-                        List<long[]> edges = new ArrayList<>();
-                        for (int k = 0; k < numEdges; k++) {
-                            long fromNodeId = in.readLong();
-                            long toNodeId = in.readLong();
-                            long weight = in.readLong();
-                            edges.add(new long[]{fromNodeId, toNodeId, weight});
+                    for (int n = 0; n < numNodes; n++) {
+                        int nodeIndex = in.readInt();
+                        Long nodeId = indexToNodeId.get(nodeIndex);
+                        if (nodeId == null) {
+                            throw new IOException("Unbekannter nodeIndex: " + nodeIndex);
                         }
 
-                        OpenRouterNode node = new OpenRouterNode(id, latitude, longitude);
-                        for (long[] edge : edges) {;
-                            node.addEdge(edge);
+                        double lat = OpenRouterCompressor.decompressCoordinate(in.readInt());
+                        double lon = OpenRouterCompressor.decompressCoordinate(in.readInt());
+
+                        OpenRouterNode node = new OpenRouterNode(nodeId, lat, lon);
+
+                        int edgeCount = in.readInt();
+                        for (int e = 0; e < edgeCount; e++) {
+                            int toIndex = in.readInt();
+                            int weightCompressed = in.readUnsignedByte();
+
+                            Long toId = indexToNodeId.get(toIndex);
+                            if (toId == null) {
+                                throw new IOException("Unbekannter Edge-Knotenindex: to=" + toIndex);
+                            }
+
+                            long weight = OpenRouterCompressor.decompressWeight((byte) weightCompressed);
+                            node.addEdge(new long[]{nodeId, toId, weight});
                         }
-                        nodeMap.put(id, node);
+
+                        nodeMap.put(nodeId, node);
                     }
 
                     tileNodeMap.put(tileCoord, nodeMap);
                 } else {
-                    // Überspringe die Knoten und Kanten der Kacheln außerhalb der BoundingBox
-                    int numNodes = in.readInt();
-                    for (int j = 0; j < numNodes; j++) {
-                        in.readLong(); // ID
-                        in.readDouble(); // Latitude
-                        in.readDouble(); // Longitude
-                        int numEdges = in.readInt();
-                        for (int k = 0; k < numEdges; k++) {
-                            in.readLong(); // fromNodeId
-                            in.readLong(); // toNodeId
-                            in.readLong(); // weight
+                    // Überspringe Knoten und Kanten der nicht relevanten Kachel
+                    for (int n = 0; n < numNodes; n++) {
+                        in.readInt(); // nodeIndex
+                        in.readInt(); // lat (komprimiert)
+                        in.readInt(); // lon (komprimiert)
+
+                        int edgeCount = in.readInt();
+                        for (int e = 0; e < edgeCount; e++) {
+                            in.readInt(); // toIndex
+                            in.readUnsignedByte(); // weightCompressed
                         }
                     }
                 }
@@ -168,6 +216,8 @@ public class ORGraphFileHandler {
             return new OpenRouterGraph(tileNodeMap);
         }
     }
+
+
 
     private static boolean isTileInBoundingBox(OpenRouterGraph.TileMapCoordinate tileCoord, double minLat, double maxLat, double minLon, double maxLon) {
         double latMin = tileCoord.y() * TILE_SIZE - 90;
@@ -177,4 +227,5 @@ public class ORGraphFileHandler {
 
         return latMin <= maxLat && latMax >= minLat && lonMin <= maxLon && lonMax >= minLon;
     }
+
 }
