@@ -1,6 +1,6 @@
 package de.riemerjonas.openrouter.graph.core;
 
-import de.riemerjonas.openrouter.core.OpenRouterEdge;
+import de.riemerjonas.openrouter.core.OpenRouterCompressor;
 import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
 import de.riemerjonas.openrouter.graph.OpenRouterGraph;
@@ -22,7 +22,7 @@ public class ORGraphBuilder
         try {
             Map<Long, OpenRouterNode> nodeMap = new HashMap<>();
             Map<Long, double[]> coordMap = new HashMap<>();
-            List<OpenRouterEdge> edges = new ArrayList<>();
+            List<OpenRouterNode.Edge> edges = new ArrayList<>();
             Set<Long> usedNodeIds = new HashSet<>();
 
             // 1. Durchlauf: Sammle nur Node-IDs aus relevanten Ways
@@ -56,8 +56,8 @@ public class ORGraphBuilder
                             long id = node.getId();
                             if (!usedNodeIds.contains(id)) continue;
 
-                            double lat = node.getLatitude();
-                            double lon = node.getLongitude();
+                            int lat = OpenRouterCompressor.compressCoordinate(node.getLatitude());
+                            int lon = OpenRouterCompressor.compressCoordinate(node.getLongitude());
                             OpenRouterNode openRouterNode = new OpenRouterNode(id, lat, lon);
                             nodeMap.put(id, openRouterNode);
                             coordMap.put(id, new double[]{lat, lon});
@@ -90,8 +90,8 @@ public class ORGraphBuilder
                                     double[] toCoord = coordMap.get(to);
                                     short weight = (short) Math.min(calculateDistance(fromCoord, toCoord), Short.MAX_VALUE);
 
-                                    OpenRouterEdge edge1 = new OpenRouterEdge(from, to, weight);
-                                    OpenRouterEdge edge2 = new OpenRouterEdge(to, from, weight);
+                                    OpenRouterNode.Edge edge1 = new OpenRouterNode.Edge(to, weight);
+                                    OpenRouterNode.Edge edge2 = new OpenRouterNode.Edge(from, weight);
 
                                     edges.add(edge1);
                                     edges.add(edge2);

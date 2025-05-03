@@ -1,6 +1,7 @@
 package de.riemerjonas.openrouter.graph;
 
 import de.riemerjonas.openrouter.core.OpenRouterBoundingBox;
+import de.riemerjonas.openrouter.core.OpenRouterGeoPoint;
 import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
 import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouteAlgorithm;
@@ -10,7 +11,6 @@ import de.riemerjonas.openrouter.graph.core.ORGraphFileHandler;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

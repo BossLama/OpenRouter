@@ -58,16 +58,16 @@ public class ORGraphFileHandler {
 
                     // Schreibe Knoten-ID, Latitude, Longitude
                     out.writeInt(nodeIdToIndex.get(node.getId()));
-                    out.writeInt(OpenRouterCompressor.compressCoordinate(node.getLatitude()));
-                    out.writeInt(OpenRouterCompressor.compressCoordinate(node.getLongitude()));
+                    out.writeInt(node.getLatitudeAsInt());
+                    out.writeInt(node.getLongitudeAsInt());
 
                     // Schreibe Kanten des Knotens
-                    List<long[]> edges = node.getEdgesAsList();
+                    List<OpenRouterNode.Edge> edges = node.getEdges();
                     out.writeInt(edges.size()); // Anzahl der Kanten
-                    for (long[] edge : edges)
+                    for (OpenRouterNode.Edge edge : edges)
                     {
-                        out.writeInt(nodeIdToIndex.get(edge[1]));
-                        out.writeByte(OpenRouterCompressor.compressWeight(edge[2]));
+                        out.writeInt(nodeIdToIndex.get(edge.to()));
+                        out.writeByte(OpenRouterCompressor.compressWeight(edge.weight()));
                     }
                 }
             }
@@ -109,23 +109,22 @@ public class ORGraphFileHandler {
                         throw new IOException("Unbekannter nodeIndex: " + nodeIndex);
                     }
 
-                    double lat = OpenRouterCompressor.decompressCoordinate(in.readInt());
-                    double lon = OpenRouterCompressor.decompressCoordinate(in.readInt());
+                    int lat = in.readInt();
+                    int lon = in.readInt();
 
                     OpenRouterNode node = new OpenRouterNode(nodeId, lat, lon);
 
                     int edgeCount = in.readInt();
                     for (int e = 0; e < edgeCount; e++) {
                         int toIndex = in.readInt();
-                        int weightCompressed = in.readUnsignedByte();
+                        short weightCompressed = (short) in.readUnsignedByte();
 
                         Long toId = indexToNodeId.get(toIndex);
                         if (toId == null) {
                             throw new IOException("Unbekannter Edge-Knotenindex: to=" + toIndex);
                         }
 
-                        long weight = OpenRouterCompressor.decompressWeight((byte) weightCompressed);
-                        node.addEdge(new long[]{nodeId, toId, weight});
+                        node.addEdge(new OpenRouterNode.Edge(toId, weightCompressed));
                     }
 
                     nodeMap.put(nodeId, node);
@@ -174,23 +173,22 @@ public class ORGraphFileHandler {
                             throw new IOException("Unbekannter nodeIndex: " + nodeIndex);
                         }
 
-                        double lat = OpenRouterCompressor.decompressCoordinate(in.readInt());
-                        double lon = OpenRouterCompressor.decompressCoordinate(in.readInt());
+                        int lat = in.readInt();
+                        int lon = in.readInt();
 
                         OpenRouterNode node = new OpenRouterNode(nodeId, lat, lon);
 
                         int edgeCount = in.readInt();
                         for (int e = 0; e < edgeCount; e++) {
                             int toIndex = in.readInt();
-                            int weightCompressed = in.readUnsignedByte();
+                            short weightCompressed = (short) in.readUnsignedByte();
 
                             Long toId = indexToNodeId.get(toIndex);
                             if (toId == null) {
                                 throw new IOException("Unbekannter Edge-Knotenindex: to=" + toIndex);
                             }
 
-                            long weight = OpenRouterCompressor.decompressWeight((byte) weightCompressed);
-                            node.addEdge(new long[]{nodeId, toId, weight});
+                            node.addEdge(new OpenRouterNode.Edge(toId, weightCompressed));
                         }
 
                         nodeMap.put(nodeId, node);

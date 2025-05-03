@@ -25,7 +25,7 @@ public class MainClass
         File inputFile = new File("C:/Users/Jonas Riemer/Downloads/maps/test.osm.pbf");
         File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/test.graph");
         OpenRouterGeoPoint startPoint = new OpenRouterGeoPoint(48.302898,11.352990);
-        OpenRouterGeoPoint endPoint = new OpenRouterGeoPoint(48.371707,11.514032);
+        OpenRouterGeoPoint endPoint = new OpenRouterGeoPoint(48.303253,11.355378);
 
         // Building a graph from a PBF file
         /*
@@ -42,6 +42,9 @@ public class MainClass
         graph.save(outputFile);
         */
 
+        long usedHeapSize = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        OpenRouterLog.info(TAG, "Used heap size: " + usedHeapSize / (1024 * 1024) + "MB");
+
         // Load the graph from a file
         ORTimeTest loadTimeTest = new ORTimeTest();
         loadTimeTest.start();
@@ -49,6 +52,11 @@ public class MainClass
         OpenRouterGraph loadedGraph = OpenRouterGraph.load(outputFile);
         OpenRouterLog.info(TAG, "Graph loaded in " + loadTimeTest.stop() + "ms");
         OpenRouterLog.info(TAG, "Graph loaded: " + loadedGraph.getAllNodes().size() + " nodes");
+        long usedHeapSizeAfterLoad = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        OpenRouterLog.info(TAG, "Used heap size after load: " + usedHeapSizeAfterLoad / (1024 * 1024) + "MB");
+        OpenRouterLog.info(TAG, "Difference in heap size: " + (usedHeapSizeAfterLoad - usedHeapSize) / (1024 * 1024) + "MB");
+        usedHeapSize = usedHeapSizeAfterLoad;
+        OpenRouterLog.info(TAG, "-------------------------");
 
         //System.exit(0);
 
@@ -60,7 +68,11 @@ public class MainClass
         OpenRouterGraph loadedGraphWithBbox = OpenRouterGraph.load(outputFile, boundingBox);
         OpenRouterLog.info(TAG, "Graph loaded in " + loadBboxTimeTest.stop() + "ms");
         OpenRouterLog.info(TAG, "Graph loaded with bounding box: " + loadedGraphWithBbox.getAllNodes().size() + " nodes");
-
+        long usedHeapSizeAfterLoadBbox = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        OpenRouterLog.info(TAG, "Used heap size after load with bounding box: " + usedHeapSizeAfterLoadBbox / (1024 * 1024) + "MB");
+        OpenRouterLog.info(TAG, "Difference in heap size: " + (usedHeapSizeAfterLoadBbox - usedHeapSize) / (1024 * 1024) + "MB");
+        usedHeapSize = usedHeapSizeAfterLoadBbox;
+        OpenRouterLog.info(TAG, "-------------------------");
 
         // Find nearest node to a given coordinate
         ORTimeTest timeTest = new ORTimeTest();
@@ -69,27 +81,7 @@ public class MainClass
         OpenRouterNode nearestNode = loadedGraph.findClosestNode(startPoint.getLatitude(), startPoint.getLongitude(), 50);
         OpenRouterLog.info(TAG, "Found nearest node in " + timeTest.stop() + "ms");
         OpenRouterLog.info(TAG, "Nearest node found: " + nearestNode.getId());
-
-        // Find a route between two nodes with bounding box
-        ORTimeTest routeTimeTest = new ORTimeTest();
-        routeTimeTest.start();
-        OpenRouterLog.info(TAG, "Finding route between two nodes");
-        List<Long> route = loadedGraphWithBbox.findRoute(
-                startPoint.getLatitude(), startPoint.getLongitude(),
-                endPoint.getLatitude(), endPoint.getLongitude()
-        );
-        OpenRouterLog.info(TAG, "Found route in " + routeTimeTest.stop() + "ms");
-
-        // Find a route between two nodes without bounding box
-        ORTimeTest routeTimeTest2 = new ORTimeTest();
-        routeTimeTest2.start();
-        OpenRouterLog.info(TAG, "Finding route between two nodes without bounding box");
-        List<Long> route2 = loadedGraph.findRoute(
-                startPoint.getLatitude(), startPoint.getLongitude(),
-                endPoint.getLatitude(), endPoint.getLongitude()
-        );
-        OpenRouterLog.info(TAG, "Found route in " + routeTimeTest2.stop() + "ms");
-        OpenRouterLog.info(TAG, "Route found: " + route.size() + " nodes");
+        OpenRouterLog.info(TAG, "-------------------------");
     }
 
 }
