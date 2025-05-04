@@ -1,5 +1,6 @@
 package de.riemerjonas.openrouter.graph;
 
+import de.riemerjonas.openrouter.core.OpenRouterBbox;
 import de.riemerjonas.openrouter.core.OpenRouterEdge;
 import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
@@ -7,6 +8,7 @@ import de.riemerjonas.openrouter.core.iface.OpenRouterCoordinate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class OpenRouterGraph
 {
@@ -66,6 +68,45 @@ public class OpenRouterGraph
     }
 
     /**
+     * Returns a list of all nodes in a bbox
+     * @param bbox the bounding box
+     */
+    public ArrayList<OpenRouterNode> getAllNodesInBbox(OpenRouterBbox bbox)
+    {
+        ArrayList<OpenRouterNode> allNodes = new ArrayList<>();
+        short[] relevantTiles = getTileCoordinates(bbox);
+
+        for (short tileCoordinate : relevantTiles) {
+            ArrayList<byte[]> nodes = tileMap.get(tileCoordinate);
+            if (nodes == null) continue;
+
+            for (byte[] nodeBytes : nodes) {
+                OpenRouterNode node = OpenRouterNode.fromByteArray(nodeBytes);
+                if (bbox.contains(node)) {
+                    allNodes.add(node);
+                }
+            }
+        }
+
+        return allNodes;
+    }
+
+    /**
+     * Returns a list of ids of a given list of nodes.
+     * @param nodes the list of nodes
+     * @return the list of ids
+     */
+    public ArrayList<Integer> nodeListToDeltaIDList(ArrayList<OpenRouterNode> nodes)
+    {
+        ArrayList<Integer> deltaIDs = new ArrayList<>();
+        for(OpenRouterNode node : nodes)
+        {
+            deltaIDs.add(node.getDeltaId());
+        }
+        return deltaIDs;
+    }
+
+    /**
      * Returns a node with the given ID.
      * @param id the ID of the node
      * @return the node with the given ID
@@ -100,6 +141,21 @@ public class OpenRouterGraph
             openRouterEdges.add(edge);
         }
         return openRouterEdges;
+    }
+
+    public ArrayList<OpenRouterEdge> getEdgesInBbox(OpenRouterBbox bbox)
+    {
+        HashSet<Integer> nodeSet = new HashSet<>(nodeListToDeltaIDList(getAllNodesInBbox(bbox)));
+        ArrayList<OpenRouterEdge> edgesInBbox = new ArrayList<>();
+
+        for (byte[] edgeBytes : edges) {
+            OpenRouterEdge edge = OpenRouterEdge.fromByteArray(edgeBytes);
+            if (nodeSet.contains(edge.getFromDeltaID()) && nodeSet.contains(edge.getToDeltaID())) {
+                edgesInBbox.add(edge);
+            }
+        }
+
+        return edgesInBbox;
     }
 
     /**
@@ -182,5 +238,27 @@ public class OpenRouterGraph
         int lat = (int) (latitude / TILE_SIZE);
         int lon = (int) (longitude / TILE_SIZE);
         return (short) ((lat << 8) | (lon & 0xFF));
+    }
+
+    public static short[] getTileCoordinates(OpenRouterBbox bbox)
+    {
+        int minLatTile = (int) (bbox.getMinLat() / TILE_SIZE);
+        int maxLatTile = (int) (bbox.getMaxLat() / TILE_SIZE);
+        int minLonTile = (int) (bbox.getMinLon() / TILE_SIZE);
+        int maxLonTile = (int) (bbox.getMaxLon() / TILE_SIZE);
+
+        ArrayList<Short> tiles = new ArrayList<>();
+        for (int lat = minLatTile; lat <= maxLatTile; lat++) {
+            for (int lon = minLonTile; lon <= maxLonTile; lon++) {
+                short tileCoordinate = (short) ((lat << 8) | (lon & 0xFF));
+                tiles.add(tileCoordinate);
+            }
+        }
+
+        short[] tileArray = new short[tiles.size()];
+        for (int i = 0; i < tiles.size(); i++) {
+            tileArray[i] = tiles.get(i);
+        }
+        return tileArray;
     }
 }

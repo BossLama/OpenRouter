@@ -19,6 +19,12 @@ public class OpenRouterGraphBuilder
     public static OpenRouterGraph buildFromPbf(File file)
     {
         OpenRouterLog.i(TAG, "Building graph from PBF file: " + file.getAbsolutePath());
+        Set<String> carHighways = Set.of(
+                "motorway", "trunk", "primary", "secondary", "tertiary",
+                "unclassified", "residential", "motorway_link", "trunk_link",
+                "primary_link", "secondary_link", "tertiary_link", "living_street"
+        );
+
         try
         {
             // Fetching all relevant data from the PBF file
@@ -36,7 +42,7 @@ public class OpenRouterGraphBuilder
                         for(int tagIndex = 0; tagIndex < way.getNumberOfTags(); tagIndex++)
                         {
                             OsmTag tag = way.getTag(tagIndex);
-                            if(tag.getKey().equals("highway"))
+                            if(tag.getKey().equals("highway") && carHighways.contains(tag.getValue()))
                             {
                                 osmWays.add(way);
                                 for(int nodeIndex = 0; nodeIndex < way.getNumberOfNodes(); nodeIndex++)

@@ -1,8 +1,8 @@
 package de.riemerjonas.openrouter.main;
 
-import de.riemerjonas.openrouter.core.OpenRouterLog;
-import de.riemerjonas.openrouter.core.OpenRouterNode;
-import de.riemerjonas.openrouter.core.OpenRouterPoint;
+import de.riemerjonas.openrouter.core.*;
+import de.riemerjonas.openrouter.core.iface.OpenRouterRoutingProfile;
+import de.riemerjonas.openrouter.core.profiles.RoutingProfileFast;
 import de.riemerjonas.openrouter.core.profiles.RoutingProfileShort;
 import de.riemerjonas.openrouter.debug.ORTimeDebug;
 import de.riemerjonas.openrouter.graph.OpenRouterGraph;
@@ -21,6 +21,7 @@ public class MainClass
 
         File inputFile = new File("C:/Users/Jonas Riemer/Downloads/maps/test.osm.pbf");
         File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/albania-latest.osm.pbf.graph");
+        File gpxFile = new File("C:/Users/Jonas Riemer/Downloads/routes/test.gpx");
 
         // Building the graph from the PBF file
         ORTimeDebug graphBuildTime = new ORTimeDebug("GraphBuild");
@@ -52,10 +53,12 @@ public class MainClass
         // Finding a route between two nodes
         ORTimeDebug routeTime = new ORTimeDebug("FindRoute");
         OpenRouterPoint start = new OpenRouterPoint(48.298758,11.345519);
-        OpenRouterPoint end = new OpenRouterPoint(48.301988,11.351237);
-        RoutingProfileShort profile = new RoutingProfileShort();
-        ORGraphRouteAStarAlgorithm.findRoute(graph, start, end, profile);
+        OpenRouterPoint end = new OpenRouterPoint(48.140665,11.566028);
+        OpenRouterRoutingProfile profile = new RoutingProfileFast();
+        OpenRouterRoute route = ORGraphRouteAStarAlgorithm.findRoute(graph, start, end, profile);
         routeTime.printResult();
+
+        OpenRouterGPX.createGPXFile(gpxFile, route);
     }
 
 }
