@@ -59,6 +59,14 @@
             <version>2.15.1</version>
         </dependency>
 
+        <!-- OpenJdk JOL dependency -->
+        <dependency>
+            <groupId>org.openjdk.jol</groupId>
+            <artifactId>jol-core</artifactId>
+            <version>0.16</version> <!-- Verwende die neueste Version -->
+        </dependency>
+
+
         <!-- Google Protobuf dependency -->
         <dependency>
             <groupId>com.google.protobuf</groupId>

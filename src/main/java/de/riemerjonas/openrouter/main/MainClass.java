@@ -1,87 +1,61 @@
 package de.riemerjonas.openrouter.main;
 
-import de.riemerjonas.openrouter.core.OpenRouterBoundingBox;
-import de.riemerjonas.openrouter.core.OpenRouterGeoPoint;
 import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
-import de.riemerjonas.openrouter.debug.ORTimeTest;
+import de.riemerjonas.openrouter.core.OpenRouterPoint;
+import de.riemerjonas.openrouter.core.profiles.RoutingProfileShort;
+import de.riemerjonas.openrouter.debug.ORTimeDebug;
 import de.riemerjonas.openrouter.graph.OpenRouterGraph;
-import de.riemerjonas.openrouter.graph.core.ORGraphBuilder;
+import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouteAStarAlgorithm;
+import de.riemerjonas.openrouter.graph.core.OpenRouterGraphBuilder;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 public class MainClass
 {
+
     private static final String TAG = "MainClass";
 
-    public static void main(String[] args)
-    {
-        OpenRouterLog.setLogLevel(OpenRouterLog.LogLevel.INFO);
-        OpenRouterLog.info(TAG, "Running OpenRouter");
+    public static void main(String[] args) throws InterruptedException {
+        OpenRouterLog.setLogLevel(OpenRouterLog.LOG_LEVEL.DEBUG);
 
-        // Settings
         File inputFile = new File("C:/Users/Jonas Riemer/Downloads/maps/test.osm.pbf");
-        File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/test.graph");
-        OpenRouterGeoPoint startPoint = new OpenRouterGeoPoint(48.302898,11.352990);
-        OpenRouterGeoPoint endPoint = new OpenRouterGeoPoint(48.303253,11.355378);
+        File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/albania-latest.osm.pbf.graph");
 
-        // Building a graph from a PBF file
-        /*
-        ORTimeTest buildTimeTest = new ORTimeTest();
-        buildTimeTest.start();
-        OpenRouterLog.info(TAG, "Building graph from PBF file: " + inputFile.getAbsolutePath());
-        OpenRouterGraph graph = ORGraphBuilder.buildFromPbf(inputFile);
-        OpenRouterLog.info(TAG, "Graph built in " + buildTimeTest.stop() + "ms");
+        // Building the graph from the PBF file
+        ORTimeDebug graphBuildTime = new ORTimeDebug("GraphBuild");
+        OpenRouterGraph graph = OpenRouterGraphBuilder.buildFromPbf(inputFile);
+        graphBuildTime.printResult();
 
-        // Save the graph to a file
-        ORTimeTest saveTimeTest = new ORTimeTest();
-        saveTimeTest.start();
-        OpenRouterLog.info(TAG, "Saving graph to file: " + outputFile.getAbsolutePath());
-        graph.save(outputFile);
-        */
+        // Finding a node by ID
+        ORTimeDebug nodeFindTime = new ORTimeDebug("FindNodeByID");
+        OpenRouterNode node = graph.getNodeByID(0);
+        if(node == null) OpenRouterLog.i(TAG, "Node not found");
+        else OpenRouterLog.i(TAG, "Node found with ID " + node.getDeltaId() + " and coordinates " + node.getLatitude() + ", " + node.getLongitude());
+        nodeFindTime.printResult();
 
-        long usedHeapSize = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        OpenRouterLog.info(TAG, "Used heap size: " + usedHeapSize / (1024 * 1024) + "MB");
+        // Finding a node by delta ID
+        ORTimeDebug nodeFindDeltaTime = new ORTimeDebug("FindNodeByDeltaID");
+        OpenRouterNode nodeDelta = graph.getNodeByDeltaID(0);
+        if(nodeDelta == null) OpenRouterLog.i(TAG, "Node not found");
+        else OpenRouterLog.i(TAG, "Node found with ID " + nodeDelta.getDeltaId() + " and coordinates " + nodeDelta.getLatitude() + ", " + nodeDelta.getLongitude());
+        nodeFindDeltaTime.printResult();
 
-        // Load the graph from a file
-        ORTimeTest loadTimeTest = new ORTimeTest();
-        loadTimeTest.start();
-        OpenRouterLog.info(TAG, "Loading graph from file: " + outputFile.getAbsolutePath());
-        OpenRouterGraph loadedGraph = OpenRouterGraph.load(outputFile);
-        OpenRouterLog.info(TAG, "Graph loaded in " + loadTimeTest.stop() + "ms");
-        OpenRouterLog.info(TAG, "Graph loaded: " + loadedGraph.getAllNodes().size() + " nodes");
-        long usedHeapSizeAfterLoad = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        OpenRouterLog.info(TAG, "Used heap size after load: " + usedHeapSizeAfterLoad / (1024 * 1024) + "MB");
-        OpenRouterLog.info(TAG, "Difference in heap size: " + (usedHeapSizeAfterLoad - usedHeapSize) / (1024 * 1024) + "MB");
-        usedHeapSize = usedHeapSizeAfterLoad;
-        OpenRouterLog.info(TAG, "-------------------------");
+        // Finding close nodes to a coordinate
+        OpenRouterPoint point = new OpenRouterPoint(48.298758,11.345519);
+        ORTimeDebug closeNodesTime = new ORTimeDebug("FindCloseNodes");
+        OpenRouterNode nodeClose = graph.findClosestNode(point, 150);
+        if(nodeClose != null) OpenRouterLog.i(TAG, "Node found with ID " + nodeClose.getDeltaId() + " and coordinates " + nodeClose.getLatitude() + ", " + nodeClose.getLongitude());
+        else OpenRouterLog.i(TAG, "No close nodes found");
+        closeNodesTime.printResult();
 
-        //System.exit(0);
-
-        // Load the graph from a file with bounding box
-        ORTimeTest loadBboxTimeTest = new ORTimeTest();
-        loadBboxTimeTest.start();
-        OpenRouterLog.info(TAG, "Loading graph from file with bounding box");
-        OpenRouterBoundingBox boundingBox = new OpenRouterBoundingBox(startPoint, endPoint);
-        OpenRouterGraph loadedGraphWithBbox = OpenRouterGraph.load(outputFile, boundingBox);
-        OpenRouterLog.info(TAG, "Graph loaded in " + loadBboxTimeTest.stop() + "ms");
-        OpenRouterLog.info(TAG, "Graph loaded with bounding box: " + loadedGraphWithBbox.getAllNodes().size() + " nodes");
-        long usedHeapSizeAfterLoadBbox = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        OpenRouterLog.info(TAG, "Used heap size after load with bounding box: " + usedHeapSizeAfterLoadBbox / (1024 * 1024) + "MB");
-        OpenRouterLog.info(TAG, "Difference in heap size: " + (usedHeapSizeAfterLoadBbox - usedHeapSize) / (1024 * 1024) + "MB");
-        usedHeapSize = usedHeapSizeAfterLoadBbox;
-        OpenRouterLog.info(TAG, "-------------------------");
-
-        // Find nearest node to a given coordinate
-        ORTimeTest timeTest = new ORTimeTest();
-        timeTest.start();
-        OpenRouterLog.info(TAG, "Finding nearest node to coordinates");
-        OpenRouterNode nearestNode = loadedGraph.findClosestNode(startPoint.getLatitude(), startPoint.getLongitude(), 50);
-        OpenRouterLog.info(TAG, "Found nearest node in " + timeTest.stop() + "ms");
-        OpenRouterLog.info(TAG, "Nearest node found: " + nearestNode.getId());
-        OpenRouterLog.info(TAG, "-------------------------");
+        // Finding a route between two nodes
+        ORTimeDebug routeTime = new ORTimeDebug("FindRoute");
+        OpenRouterPoint start = new OpenRouterPoint(48.298758,11.345519);
+        OpenRouterPoint end = new OpenRouterPoint(48.301988,11.351237);
+        RoutingProfileShort profile = new RoutingProfileShort();
+        ORGraphRouteAStarAlgorithm.findRoute(graph, start, end, profile);
+        routeTime.printResult();
     }
 
 }
