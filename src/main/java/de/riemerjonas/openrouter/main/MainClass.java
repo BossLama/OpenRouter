@@ -4,12 +4,16 @@ import de.riemerjonas.openrouter.core.OpenRouterGPX;
 import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
 import de.riemerjonas.openrouter.core.OpenRouterPoint;
+import de.riemerjonas.openrouter.core.ifaces.IRoutingProfile;
+import de.riemerjonas.openrouter.core.profiles.RoutingProfileFast;
+import de.riemerjonas.openrouter.core.profiles.RoutingProfileShort;
 import de.riemerjonas.openrouter.debug.ORTimeDebug;
 import de.riemerjonas.openrouter.graph.OpenRouterGraph;
 import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouter;
 import de.riemerjonas.openrouter.graph.core.ORGraphHandler;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainClass
@@ -20,9 +24,8 @@ public class MainClass
     public static void main(String[] args) throws InterruptedException {
         OpenRouterLog.setLogLevel(OpenRouterLog.LOG_LEVEL.DEBUG);
 
-        File inputFile = new File("C:/Users/Jonas Riemer/Downloads/maps/test.osm.pbf");
-        File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/test.graph");
-        File gpxFile = new File("C:/Users/Jonas Riemer/Downloads/routes/test.gpx");
+        File inputFile = new File("C:/Users/Jonas Riemer/Downloads/maps/bayern.osm.pbf");
+        File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/bayern.graph");
 
 
         // ========== GraphBuilder ==========
@@ -48,31 +51,32 @@ public class MainClass
         //========== NearestNode ========== //
         ORTimeDebug nearestNodeTime = new ORTimeDebug("NearestNode");
         nearestNodeTime.start();
-        OpenRouterPoint point = new OpenRouterPoint(48.300546, 11.348695);
+        OpenRouterPoint point = new OpenRouterPoint(48.301890,11.351371);
         OpenRouterNode nearestNode = loadedGraph.getNearestNode(point);
         if(nearestNode == null) OpenRouterLog.e(TAG, "Point is null");
         else OpenRouterLog.d(TAG, "Node: " + nearestNode.getLatitude() + ", " + nearestNode.getLongitude());
         nearestNodeTime.printResult();
 
         // ========== Routing ========== //
-        ORTimeDebug routeTime = new ORTimeDebug("Routing");
-        routeTime.start();
-        OpenRouterPoint destination = new OpenRouterPoint(48.283223,11.366155);
-        List<OpenRouterNode> route = ORGraphRouter.route(point, destination, loadedGraph);
-        if(route == null || route.size() == 0) OpenRouterLog.e(TAG, "Route is null or empty");
-        else OpenRouterLog.d(TAG, "Route: " + route.size() + " nodes");
-        routeTime.printResult();
+        OpenRouterPoint destination = new OpenRouterPoint(49.489835,11.082304);
+        ArrayList<IRoutingProfile> profiles = new ArrayList<>();
+        profiles.add(new RoutingProfileFast());
+        profiles.add(new RoutingProfileShort());
 
-        // ========== GPX ========== //
-        ORTimeDebug gpxTime = new ORTimeDebug("GPX");
-        gpxTime.start();
-        if (route != null && route.size() > 0) {
-            OpenRouterGPX.create(gpxFile, route, "Test Route");
-            OpenRouterLog.d(TAG, "GPX file created: " + gpxFile.getAbsolutePath());
-        } else {
-            OpenRouterLog.e(TAG, "Route is null or empty, cannot create GPX file");
+        for (IRoutingProfile profile : profiles) {
+            ORTimeDebug routeTime = new ORTimeDebug("Routing");
+            routeTime.start();
+            OpenRouterLog.d(TAG, "Using profile: " + profile.getName());
+            List<OpenRouterNode> routeProfile = ORGraphRouter.route(point, destination, loadedGraph, profile);
+            routeTime.printResult();
+            if(routeProfile != null)
+            {
+                String baseName = "route_" + profile.getName() + ".gpx";
+                String filePath = "C:/Users/Jonas Riemer/Downloads/routes/" + baseName;
+                OpenRouterGPX.create(new File(filePath), routeProfile, profile.getName());
+                OpenRouterLog.d(TAG, "Route created: " + filePath);
+            }
         }
-
 
 
     }

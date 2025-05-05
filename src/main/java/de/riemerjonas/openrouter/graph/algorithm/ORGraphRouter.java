@@ -2,6 +2,7 @@ package de.riemerjonas.openrouter.graph.algorithm;
 
 import de.riemerjonas.openrouter.core.*;
 import de.riemerjonas.openrouter.core.ifaces.IGeoCoordinate;
+import de.riemerjonas.openrouter.core.ifaces.IRoutingProfile;
 import de.riemerjonas.openrouter.graph.OpenRouterGraph;
 
 import java.util.*;
@@ -10,11 +11,11 @@ public class ORGraphRouter {
 
     private static final String TAG = "ORGraphRouter";
 
-    public static List<OpenRouterNode> route(IGeoCoordinate start, IGeoCoordinate end, OpenRouterGraph graph)
+    public static List<OpenRouterNode> route(IGeoCoordinate start, IGeoCoordinate end, OpenRouterGraph graph, IRoutingProfile profile)
     {
-        return route(start.getLatitude(), start.getLongitude(), end.getLatitude(), end.getLongitude(), graph);
+        return route(start.getLatitude(), start.getLongitude(), end.getLatitude(), end.getLongitude(), graph, profile);
     }
-    public static List<OpenRouterNode> route(double latStart, double lonStart, double latEnd, double lonEnd, OpenRouterGraph graph)
+    public static List<OpenRouterNode> route(double latStart, double lonStart, double latEnd, double lonEnd, OpenRouterGraph graph, IRoutingProfile profile)
     {
         // Getting start and end nodes
         OpenRouterNode startNode = graph.getNearestNode(latStart, lonStart);
@@ -90,7 +91,7 @@ public class ORGraphRouter {
             for (OpenRouterEdge edge : neighbors)
             {
                 int neighborId = edge.getToID();
-                double cost = computeEdgeCost(edge);
+                double cost = profile.getWeight(edge);
 
                 double newDist = distance.get(currentId) + cost;
                 if (newDist < distance.getOrDefault(neighborId, Double.POSITIVE_INFINITY))
@@ -112,13 +113,6 @@ public class ORGraphRouter {
         }
 
         return path.isEmpty() || !path.getFirst().equals(startNode) ? null : path;
-    }
-
-    private static double computeEdgeCost(OpenRouterEdge edge)
-    {
-        OpenRouterEdgeMeta meta = edge.getMetaDataAsObject();
-        double travelTime = meta.getDistanceMeter() / (double) meta.getMaxSpeedMs();
-        return travelTime + meta.getAdditionalTime();
     }
 
     // Hilfsklasse
