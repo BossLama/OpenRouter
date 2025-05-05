@@ -1,74 +1,75 @@
 package de.riemerjonas.openrouter.core;
 
+import java.util.List;
+
 public class OpenRouterEdge
 {
-    private final int fromDeltaID;
-    private final int toDeltaID;
-    private final short distance;
-    private final short maxSpeed;
-    private boolean isBidirectional = false;
+    private final int fromID;
+    private final int toID;
+    private final int metaData;
 
-    public OpenRouterEdge(int fromDeltaID, int toDeltaID, short distance, short maxSpeed, boolean isBidirectional)
+    public OpenRouterEdge(int fromID, int toID, int metaData)
     {
-        this.fromDeltaID = fromDeltaID;
-        this.toDeltaID = toDeltaID;
-        this.distance = distance;
-        this.maxSpeed = maxSpeed;
-        this.isBidirectional = isBidirectional;
+        this.fromID = fromID;
+        this.toID = toID;
+        this.metaData = metaData;
     }
 
-    public int getFromDeltaID()
+    public OpenRouterEdge(int fromID, int toID, OpenRouterEdgeMeta metaData)
     {
-        return fromDeltaID;
+        this.fromID = fromID;
+        this.toID = toID;
+        this.metaData = metaData.getPackedData();
     }
 
-    public int getToDeltaID()
+    public int getFromID()
     {
-        return toDeltaID;
+        return fromID;
     }
 
-    public short getDistance()
+    public int getToID()
     {
-        return distance;
+        return toID;
     }
 
-    public short getMaxSpeed()
+    public int getMetaData()
     {
-        return maxSpeed;
+        return metaData;
     }
 
-    public boolean isBidirectional()
+    public OpenRouterEdgeMeta getMetaDataAsObject()
     {
-        return isBidirectional;
+        return OpenRouterEdgeMeta.fromPackedData(metaData);
     }
 
-    public byte[] toByteArray()
-    {
-        byte[] byteArray = new byte[13];
-        byteArray[0] = (byte) (fromDeltaID >> 24);
-        byteArray[1] = (byte) (fromDeltaID >> 16);
-        byteArray[2] = (byte) (fromDeltaID >> 8);
-        byteArray[3] = (byte) (fromDeltaID);
-        byteArray[4] = (byte) (toDeltaID >> 24);
-        byteArray[5] = (byte) (toDeltaID >> 16);
-        byteArray[6] = (byte) (toDeltaID >> 8);
-        byteArray[7] = (byte) (toDeltaID);
-        byteArray[8] = (byte) (distance >> 8);
-        byteArray[9] = (byte) (distance);
-        byteArray[10] = (byte) (maxSpeed >> 8);
-        byteArray[11] = (byte) (maxSpeed);
-        byteArray[12] = (byte) (isBidirectional ? 1 : 0);
-        return byteArray;
-    }
+    public static byte[] serialize(List<OpenRouterEdge> edges) {
+        int size = edges.size();
+        byte[] data = new byte[size * 12];
 
-    public static OpenRouterEdge fromByteArray(byte[] byteArray)
-    {
-        int fromDeltaID = ((byteArray[0] & 0xFF) << 24) | ((byteArray[1] & 0xFF) << 16) | ((byteArray[2] & 0xFF) << 8) | (byteArray[3] & 0xFF);
-        int toDeltaID = ((byteArray[4] & 0xFF) << 24) | ((byteArray[5] & 0xFF) << 16) | ((byteArray[6] & 0xFF) << 8) | (byteArray[7] & 0xFF);
-        short distance = (short) (((byteArray[8] & 0xFF) << 8) | (byteArray[9] & 0xFF));
-        short maxSpeed = (short) (((byteArray[10] & 0xFF) << 8) | (byteArray[11] & 0xFF));
-        boolean isBidirectional = byteArray[12] == 1;
-        return new OpenRouterEdge(fromDeltaID, toDeltaID, distance, maxSpeed, isBidirectional);
+        for (int i = 0; i < size; i++) {
+            OpenRouterEdge edge = edges.get(i);
+            int offset = i * 12;
+
+            // fromID
+            data[offset]     = (byte) (edge.fromID >> 24);
+            data[offset + 1] = (byte) (edge.fromID >> 16);
+            data[offset + 2] = (byte) (edge.fromID >> 8);
+            data[offset + 3] = (byte) edge.fromID;
+
+            // toID
+            data[offset + 4] = (byte) (edge.toID >> 24);
+            data[offset + 5] = (byte) (edge.toID >> 16);
+            data[offset + 6] = (byte) (edge.toID >> 8);
+            data[offset + 7] = (byte) edge.toID;
+
+            // metaData
+            data[offset + 8]  = (byte) (edge.metaData >> 24);
+            data[offset + 9]  = (byte) (edge.metaData >> 16);
+            data[offset + 10] = (byte) (edge.metaData >> 8);
+            data[offset + 11] = (byte) edge.metaData;
+        }
+
+        return data;
     }
 
 }

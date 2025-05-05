@@ -1,264 +1,83 @@
 package de.riemerjonas.openrouter.graph;
 
-import de.riemerjonas.openrouter.core.OpenRouterBbox;
 import de.riemerjonas.openrouter.core.OpenRouterEdge;
 import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
-import de.riemerjonas.openrouter.core.iface.OpenRouterCoordinate;
+import de.riemerjonas.openrouter.core.OpenRouterTileMap;
+import de.riemerjonas.openrouter.core.ifaces.IGeoCoordinate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 
 public class OpenRouterGraph
 {
-    private static final String TAG = "OpenRouterGraph";
-    private static final double TILE_SIZE = 0.01;
-    private final long baseId;
-    private final HashMap<Short, ArrayList<byte[]>> tileMap;
-    private final ArrayList<byte[]> edges;
+    private final OpenRouterTileMap tileMap;
+    private final List<OpenRouterEdge> edges;
 
-    public OpenRouterGraph(ArrayList<OpenRouterNode> nodes, ArrayList<byte[]> edges, long baseId)
+    /**
+     * Creates a new OpenRouterGraph with the given tile map.
+     * @param tileMap the tile map
+     */
+    public OpenRouterGraph(OpenRouterTileMap tileMap, List<OpenRouterEdge> edges)
     {
-        this.edges = edges;
-        this.tileMap = new HashMap<>();
-        this.baseId = baseId;
-
-        for(OpenRouterNode node : nodes)
-        {
-            short tileCoordinate = getTileCoordinate(node.getLatitude(), node.getLongitude());
-            byte[] nodeBytes = node.toByteArray();
-            if(!tileMap.containsKey(tileCoordinate))
-            {
-                tileMap.put(tileCoordinate, new ArrayList<>());
-                tileMap.get(tileCoordinate).add(nodeBytes);
-            }
-            else
-            {
-                tileMap.get(tileCoordinate).add(nodeBytes);
-            }
-        }
-        OpenRouterLog.i(TAG, "Created graph with " + tileMap.size() + " tiles");
-    }
-
-    public OpenRouterGraph(HashMap<Short, ArrayList<byte[]>> tileMap, ArrayList<byte[]> edges, long baseId)
-    {
-        this.edges = edges;
         this.tileMap = tileMap;
-        this.baseId = baseId;
+        this.edges = edges;
     }
 
     /**
-     * Returns a list of all nodes in the graph.
-     * @return a list of all nodes in the graph
+     * Creates a new OpenRouterGraph with the given nodes.
+     * @param nodes the nodes
      */
-    public ArrayList<OpenRouterNode> getAllNodes()
+    public OpenRouterGraph(List<OpenRouterNode> nodes, List<OpenRouterEdge> edges)
     {
-        ArrayList<OpenRouterNode> allNodes = new ArrayList<>();
-        for(short tileCoordinate : tileMap.keySet())
-        {
-            ArrayList<byte[]> nodes = tileMap.get(tileCoordinate);
-            for(byte[] nodeBytes : nodes)
-            {
-                OpenRouterNode node = OpenRouterNode.fromByteArray(nodeBytes);
-                allNodes.add(node);
-            }
-        }
-        return allNodes;
+        this.edges = edges;
+        this.tileMap = OpenRouterTileMap.create(nodes);
     }
 
     /**
-     * Returns a list of all nodes in a bbox
-     * @param bbox the bounding box
+     * Returns the tile map.
+     * @return the tile map
      */
-    public ArrayList<OpenRouterNode> getAllNodesInBbox(OpenRouterBbox bbox)
+    public OpenRouterTileMap getTileMap()
     {
-        ArrayList<OpenRouterNode> allNodes = new ArrayList<>();
-        short[] relevantTiles = getTileCoordinates(bbox);
-
-        for (short tileCoordinate : relevantTiles) {
-            ArrayList<byte[]> nodes = tileMap.get(tileCoordinate);
-            if (nodes == null) continue;
-
-            for (byte[] nodeBytes : nodes) {
-                OpenRouterNode node = OpenRouterNode.fromByteArray(nodeBytes);
-                if (bbox.contains(node)) {
-                    allNodes.add(node);
-                }
-            }
-        }
-
-        return allNodes;
+        return tileMap;
     }
 
     /**
-     * Returns a list of ids of a given list of nodes.
-     * @param nodes the list of nodes
-     * @return the list of ids
+     * Returns the edges.
+     * @return the edges
      */
-    public ArrayList<Integer> nodeListToDeltaIDList(ArrayList<OpenRouterNode> nodes)
+    public List<OpenRouterEdge> getEdges()
     {
-        ArrayList<Integer> deltaIDs = new ArrayList<>();
-        for(OpenRouterNode node : nodes)
-        {
-            deltaIDs.add(node.getDeltaId());
-        }
-        return deltaIDs;
+        return edges;
     }
 
     /**
-     * Returns a node with the given ID.
-     * @param id the ID of the node
-     * @return the node with the given ID
+     * Returns all nodes in the graph.
+     * @return all nodes in the graph
      */
-    public OpenRouterNode getNodeByID(long id)
+    public List<OpenRouterNode> getNodes()
     {
-        for(short tileCoordinate : tileMap.keySet())
-        {
-            ArrayList<byte[]> nodes = tileMap.get(tileCoordinate);
-            for(byte[] nodeBytes : nodes)
-            {
-                OpenRouterNode node = OpenRouterNode.fromByteArray(nodeBytes);
-                if((node.getDeltaId() + baseId) == id)
-                {
-                    return node;
-                }
-            }
-        }
-        return null;
+        return tileMap.getNodes();
     }
 
     /**
-     * Returns all edges in the graph.
-     * @return all edges in the graph
+     * Returns the nearest node to the given latitude and longitude.
+     * @param latitude is the latitude in degrees
+     * @param longitude is the longitude in degrees
+     * @return the nearest node
      */
-    public ArrayList<OpenRouterEdge> getEdges()
+    public OpenRouterNode getNearestNode(double latitude, double longitude)
     {
-        ArrayList<OpenRouterEdge> openRouterEdges = new ArrayList<>();
-        for(byte[] edgeBytes : edges)
-        {
-            OpenRouterEdge edge = OpenRouterEdge.fromByteArray(edgeBytes);
-            openRouterEdges.add(edge);
-        }
-        return openRouterEdges;
-    }
-
-    public ArrayList<OpenRouterEdge> getEdgesInBbox(OpenRouterBbox bbox)
-    {
-        HashSet<Integer> nodeSet = new HashSet<>(nodeListToDeltaIDList(getAllNodesInBbox(bbox)));
-        ArrayList<OpenRouterEdge> edgesInBbox = new ArrayList<>();
-
-        for (byte[] edgeBytes : edges) {
-            OpenRouterEdge edge = OpenRouterEdge.fromByteArray(edgeBytes);
-            if (nodeSet.contains(edge.getFromDeltaID()) && nodeSet.contains(edge.getToDeltaID())) {
-                edgesInBbox.add(edge);
-            }
-        }
-
-        return edgesInBbox;
+        return tileMap.getNearestNode(latitude, longitude);
     }
 
     /**
-     * Returns a node with the given deltaID
-     * @param deltaID the deltaID of the node
-     * @return the node with the given deltaID
+     * Returns the nearest node to the given coordinate.
+     * @param coordinate is the coordinate
+     * @return the nearest node
      */
-    public OpenRouterNode getNodeByDeltaID(int deltaID)
+    public OpenRouterNode getNearestNode(IGeoCoordinate coordinate)
     {
-        for(short tileCoordinate : tileMap.keySet())
-        {
-            ArrayList<byte[]> nodes = tileMap.get(tileCoordinate);
-            for(byte[] nodeBytes : nodes)
-            {
-                OpenRouterNode node = OpenRouterNode.fromByteArray(nodeBytes);
-                if(node.getDeltaId() == deltaID)
-                {
-                    return node;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Finds the closest node to the given latitude and longitude.
-     * @param latitude the latitude of the node
-     * @param longitude the longitude of the node
-     * @return
-     */
-    public OpenRouterNode findClosestNode(double latitude, double longitude, int maxDistance)
-    {
-        short tileCoordinate = getTileCoordinate(latitude, longitude);
-        ArrayList<byte[]> nodes = tileMap.get(tileCoordinate);
-        if(nodes == null)
-        {
-            OpenRouterLog.i(TAG, "No nodes found in tile " + tileCoordinate);
-            return null;
-        }
-        OpenRouterNode closestNode = null;
-        double closestDistance = Double.MAX_VALUE;
-        for(byte[] nodeBytes : nodes)
-        {
-            OpenRouterNode node = OpenRouterNode.fromByteArray(nodeBytes);
-            double distance = node.distanceMeter(latitude, longitude);
-            if(distance < closestDistance && distance < maxDistance)
-            {
-                closestDistance = distance;
-                closestNode = node;
-            }
-        }
-        if(closestNode == null)
-        {
-            OpenRouterLog.i(TAG, "No closest found in tile " + tileCoordinate);
-            return null;
-        }
-        OpenRouterLog.i(TAG, "Found closest node " + closestNode.getDeltaId() + " with distance " + closestDistance);
-        return closestNode;
-    }
-
-    /**
-     * Finds the closest node to the given coordinate.
-     * @param coordinate the coordinate of the node
-     * @return the closest node
-     */
-    public OpenRouterNode findClosestNode(OpenRouterCoordinate coordinate, int maxDistance)
-    {
-        return findClosestNode(coordinate.getLatitude(), coordinate.getLongitude(), maxDistance);
-    }
-
-    /**
-     * Converts the given latitude and longitude to tile coordinates.
-     * The latitude is represented as a byte and the longitude as a short.
-     * @param latitude the latitude of the tile
-     * @param longitude the longitude of the tile
-     * @return the tile coordinates
-     */
-    public static short getTileCoordinate(double latitude, double longitude)
-    {
-        int lat = (int) (latitude / TILE_SIZE);
-        int lon = (int) (longitude / TILE_SIZE);
-        return (short) ((lat << 8) | (lon & 0xFF));
-    }
-
-    public static short[] getTileCoordinates(OpenRouterBbox bbox)
-    {
-        int minLatTile = (int) (bbox.getMinLat() / TILE_SIZE);
-        int maxLatTile = (int) (bbox.getMaxLat() / TILE_SIZE);
-        int minLonTile = (int) (bbox.getMinLon() / TILE_SIZE);
-        int maxLonTile = (int) (bbox.getMaxLon() / TILE_SIZE);
-
-        ArrayList<Short> tiles = new ArrayList<>();
-        for (int lat = minLatTile; lat <= maxLatTile; lat++) {
-            for (int lon = minLonTile; lon <= maxLonTile; lon++) {
-                short tileCoordinate = (short) ((lat << 8) | (lon & 0xFF));
-                tiles.add(tileCoordinate);
-            }
-        }
-
-        short[] tileArray = new short[tiles.size()];
-        for (int i = 0; i < tiles.size(); i++) {
-            tileArray[i] = tiles.get(i);
-        }
-        return tileArray;
+        return tileMap.getNearestNode(coordinate.getLatitude(), coordinate.getLongitude());
     }
 }

@@ -1,15 +1,16 @@
 package de.riemerjonas.openrouter.main;
 
-import de.riemerjonas.openrouter.core.*;
-import de.riemerjonas.openrouter.core.iface.OpenRouterRoutingProfile;
-import de.riemerjonas.openrouter.core.profiles.RoutingProfileFast;
-import de.riemerjonas.openrouter.core.profiles.RoutingProfileShort;
+import de.riemerjonas.openrouter.core.OpenRouterGPX;
+import de.riemerjonas.openrouter.core.OpenRouterLog;
+import de.riemerjonas.openrouter.core.OpenRouterNode;
+import de.riemerjonas.openrouter.core.OpenRouterPoint;
 import de.riemerjonas.openrouter.debug.ORTimeDebug;
 import de.riemerjonas.openrouter.graph.OpenRouterGraph;
-import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouteAStarAlgorithm;
-import de.riemerjonas.openrouter.graph.core.OpenRouterGraphBuilder;
+import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouter;
+import de.riemerjonas.openrouter.graph.core.ORGraphHandler;
 
 import java.io.File;
+import java.util.List;
 
 public class MainClass
 {
@@ -20,45 +21,60 @@ public class MainClass
         OpenRouterLog.setLogLevel(OpenRouterLog.LOG_LEVEL.DEBUG);
 
         File inputFile = new File("C:/Users/Jonas Riemer/Downloads/maps/test.osm.pbf");
-        File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/albania-latest.osm.pbf.graph");
+        File outputFile = new File("C:/Users/Jonas Riemer/Downloads/graphs/test.graph");
         File gpxFile = new File("C:/Users/Jonas Riemer/Downloads/routes/test.gpx");
 
-        // Building the graph from the PBF file
-        ORTimeDebug graphBuildTime = new ORTimeDebug("GraphBuild");
-        OpenRouterGraph graph = OpenRouterGraphBuilder.buildFromPbf(inputFile);
-        graphBuildTime.printResult();
 
-        // Finding a node by ID
-        ORTimeDebug nodeFindTime = new ORTimeDebug("FindNodeByID");
-        OpenRouterNode node = graph.getNodeByID(0);
-        if(node == null) OpenRouterLog.i(TAG, "Node not found");
-        else OpenRouterLog.i(TAG, "Node found with ID " + node.getDeltaId() + " and coordinates " + node.getLatitude() + ", " + node.getLongitude());
-        nodeFindTime.printResult();
+        // ========== GraphBuilder ==========
+        /*
+        ORTimeDebug graphTime = new ORTimeDebug("GraphBuilder");
+        graphTime.start();
+        OpenRouterGraph graph = ORGraphHandler.buildFromPBF(inputFile);
+        graphTime.printResult();
 
-        // Finding a node by delta ID
-        ORTimeDebug nodeFindDeltaTime = new ORTimeDebug("FindNodeByDeltaID");
-        OpenRouterNode nodeDelta = graph.getNodeByDeltaID(0);
-        if(nodeDelta == null) OpenRouterLog.i(TAG, "Node not found");
-        else OpenRouterLog.i(TAG, "Node found with ID " + nodeDelta.getDeltaId() + " and coordinates " + nodeDelta.getLatitude() + ", " + nodeDelta.getLongitude());
-        nodeFindDeltaTime.printResult();
+        // ========== GraphSaver ========== //
+        ORTimeDebug saveTime = new ORTimeDebug("GraphSaver");
+        saveTime.start();
+        ORGraphHandler.save(outputFile, graph);
+        saveTime.printResult();
+        */
 
-        // Finding close nodes to a coordinate
-        OpenRouterPoint point = new OpenRouterPoint(48.298758,11.345519);
-        ORTimeDebug closeNodesTime = new ORTimeDebug("FindCloseNodes");
-        OpenRouterNode nodeClose = graph.findClosestNode(point, 150);
-        if(nodeClose != null) OpenRouterLog.i(TAG, "Node found with ID " + nodeClose.getDeltaId() + " and coordinates " + nodeClose.getLatitude() + ", " + nodeClose.getLongitude());
-        else OpenRouterLog.i(TAG, "No close nodes found");
-        closeNodesTime.printResult();
+        // ========== GraphLoader ========== //
+        ORTimeDebug loadTime = new ORTimeDebug("GraphLoader");
+        loadTime.start();
+        OpenRouterGraph loadedGraph = ORGraphHandler.load(outputFile);
+        loadTime.printResult();
 
-        // Finding a route between two nodes
-        ORTimeDebug routeTime = new ORTimeDebug("FindRoute");
-        OpenRouterPoint start = new OpenRouterPoint(48.298758,11.345519);
-        OpenRouterPoint end = new OpenRouterPoint(48.140665,11.566028);
-        OpenRouterRoutingProfile profile = new RoutingProfileFast();
-        OpenRouterRoute route = ORGraphRouteAStarAlgorithm.findRoute(graph, start, end, profile);
+        //========== NearestNode ========== //
+        ORTimeDebug nearestNodeTime = new ORTimeDebug("NearestNode");
+        nearestNodeTime.start();
+        OpenRouterPoint point = new OpenRouterPoint(48.300546, 11.348695);
+        OpenRouterNode nearestNode = loadedGraph.getNearestNode(point);
+        if(nearestNode == null) OpenRouterLog.e(TAG, "Point is null");
+        else OpenRouterLog.d(TAG, "Node: " + nearestNode.getLatitude() + ", " + nearestNode.getLongitude());
+        nearestNodeTime.printResult();
+
+        // ========== Routing ========== //
+        ORTimeDebug routeTime = new ORTimeDebug("Routing");
+        routeTime.start();
+        OpenRouterPoint destination = new OpenRouterPoint(48.283223,11.366155);
+        List<OpenRouterNode> route = ORGraphRouter.route(point, destination, loadedGraph);
+        if(route == null || route.size() == 0) OpenRouterLog.e(TAG, "Route is null or empty");
+        else OpenRouterLog.d(TAG, "Route: " + route.size() + " nodes");
         routeTime.printResult();
 
-        OpenRouterGPX.createGPXFile(gpxFile, route);
+        // ========== GPX ========== //
+        ORTimeDebug gpxTime = new ORTimeDebug("GPX");
+        gpxTime.start();
+        if (route != null && route.size() > 0) {
+            OpenRouterGPX.create(gpxFile, route, "Test Route");
+            OpenRouterLog.d(TAG, "GPX file created: " + gpxFile.getAbsolutePath());
+        } else {
+            OpenRouterLog.e(TAG, "Route is null or empty, cannot create GPX file");
+        }
+
+
+
     }
 
 }

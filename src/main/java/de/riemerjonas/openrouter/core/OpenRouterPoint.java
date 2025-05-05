@@ -1,47 +1,55 @@
 package de.riemerjonas.openrouter.core;
 
-import de.riemerjonas.openrouter.core.iface.OpenRouterCoordinate;
+import de.riemerjonas.openrouter.core.ifaces.IGeoCoordinate;
 
-public class OpenRouterPoint implements OpenRouterCoordinate
+public class OpenRouterPoint implements IGeoCoordinate
 {
-    private static final double COORDINATE_PRECISION = 1E6;
-    private final int latitude;
-    private final int longitude;
+    private final int latitudeE6;
+    private final int longitudeE6;
 
-    public OpenRouterPoint(int latitude, int longitude)
+    /**
+     * Creates a new OpenRouterPoint with the given latitude and longitude in E6 format.
+     * @param latitudeE6 the latitude in E6 format
+     * @param longitudeE6 the longitude in E6 format
+     */
+    public OpenRouterPoint(int latitudeE6, int longitudeE6)
     {
-        this.latitude = latitude;
-        this.longitude = longitude;
+        this.latitudeE6 = latitudeE6;
+        this.longitudeE6 = longitudeE6;
     }
 
+    /**
+     * Creates a new OpenRouterPoint with the given latitude and longitude in degrees.
+     * @param latitude the latitude in degrees
+     * @param longitude the longitude in degrees
+     */
     public OpenRouterPoint(double latitude, double longitude)
     {
-        this.latitude = (int) (latitude * COORDINATE_PRECISION);
-        this.longitude = (int) (longitude * COORDINATE_PRECISION);
+        this.latitudeE6 = (int) (latitude * 1E6);
+        this.longitudeE6 = (int) (longitude * 1E6);
+    }
+
+
+    @Override
+    public int getLatitudeE6() {
+        return latitudeE6;
     }
 
     @Override
-    public double getLatitude()
-    {
-        return latitude / COORDINATE_PRECISION;
+    public int getLongitudeE6() {
+        return longitudeE6;
     }
 
-    @Override
-    public double getLongitude()
+    /**
+     * Returns a OpenRouterPoint from bytes.
+     * @param bytes the bytes to read from
+     * @return the OpenRouterPoint
+     */
+    public static OpenRouterPoint fromBytes(byte[] bytes)
     {
-        return longitude / COORDINATE_PRECISION;
-    }
-
-    @Override
-    public int getLatitudeInt()
-    {
-        return latitude;
-    }
-
-    @Override
-    public int getLongitudeInt()
-    {
-        return longitude;
+        int latitude = ((bytes[0] & 0xFF) << 24) | ((bytes[1] & 0xFF) << 16) | ((bytes[2] & 0xFF) << 8) | (bytes[3] & 0xFF);
+        int longitude = ((bytes[4] & 0xFF) << 24) | ((bytes[5] & 0xFF) << 16) | ((bytes[6] & 0xFF) << 8) | (bytes[7] & 0xFF);
+        return new OpenRouterPoint(latitude, longitude);
     }
 
 }

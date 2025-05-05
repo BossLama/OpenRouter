@@ -1,37 +1,30 @@
 package de.riemerjonas.openrouter.core;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 
-public class OpenRouterGPX
-{
+public class OpenRouterGPX {
 
-    private static final String TAG = "OpenRouterGPX";
+    public static void create(File file, List<OpenRouterNode> nodes, String name) {
+        // Write the GPX file
+        StringBuilder gpx = new StringBuilder();
+        gpx.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        gpx.append("<gpx version=\"1.1\" creator=\"OpenRouter\">\n");
+        gpx.append("<trk>\n");
+        gpx.append("<name>").append(name).append("</name>\n");
+        gpx.append("<trkseg>\n");
+        for (OpenRouterNode node : nodes) {
+            gpx.append("<trkpt lat=\"").append(node.getLatitude()).append("\" lon=\"").append(node.getLongitude()).append("\">\n");
+            gpx.append("</trkpt>\n");
+        }
+        gpx.append("</trkseg>\n");
+        gpx.append("</trk>\n");
+        gpx.append("</gpx>\n");
 
-    public static void createGPXFile(File file, OpenRouterRoute route) {
-        ArrayList<OpenRouterNode> nodes = route.getRouteNodes();
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-            writer.write("<gpx version=\"1.1\" creator=\"OpenRouter\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n");
-            writer.write("  <trk>\n");
-            writer.write("    <name>Generated Route</name>\n");
-            writer.write("    <trkseg>\n");
-
-            for (OpenRouterNode node : nodes) {
-                writer.write("      <trkpt lat=\"" + node.getLatitude() + "\" lon=\"" + node.getLongitude() + "\"></trkpt>\n");
-            }
-
-            writer.write("    </trkseg>\n");
-            writer.write("  </trk>\n");
-            writer.write("</gpx>\n");
-        } catch (IOException e)
-        {
-            OpenRouterLog.e(TAG, "Error writing GPX file: " + e.getMessage(), e);
+        try {
+            java.nio.file.Files.write(file.toPath(), gpx.toString().getBytes());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
-
 }
