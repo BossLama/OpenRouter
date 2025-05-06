@@ -5,7 +5,11 @@ import de.riemerjonas.openrouter.core.OpenRouterLog;
 import de.riemerjonas.openrouter.core.OpenRouterNode;
 import de.riemerjonas.openrouter.core.OpenRouterTileMap;
 import de.riemerjonas.openrouter.core.ifaces.IGeoCoordinate;
+import de.riemerjonas.openrouter.core.ifaces.IRoutingProfile;
+import de.riemerjonas.openrouter.graph.algorithm.ORGraphRouter;
+import de.riemerjonas.openrouter.graph.core.ORGraphHandler;
 
+import java.io.File;
 import java.util.List;
 
 public class OpenRouterGraph
@@ -61,6 +65,18 @@ public class OpenRouterGraph
     }
 
     /**
+     * Returns a route from the given start node to the given end node.
+     * @param from is the start node
+     * @param to is the end node
+     * @param profile is the routing profile
+     * @return the route
+     */
+    public List<OpenRouterNode> getRoute(IGeoCoordinate from, IGeoCoordinate to, IRoutingProfile profile)
+    {
+        return ORGraphRouter.route(from, to, this, profile);
+    }
+
+    /**
      * Returns the nearest node to the given latitude and longitude.
      * @param latitude is the latitude in degrees
      * @param longitude is the longitude in degrees
@@ -80,4 +96,25 @@ public class OpenRouterGraph
     {
         return tileMap.getNearestNode(coordinate.getLatitude(), coordinate.getLongitude());
     }
+
+    /**
+     * Saves the graph to a file.
+     * @param file is the file to save
+     */
+    public void save(File file)
+    {
+        ORGraphHandler.save(file, this);
+    }
+
+    /**
+     * Loads a graph from a file.
+     * @param file is the file to load
+     * @return the loaded graph
+     */
+    public static OpenRouterGraph load(File file)
+    {
+        return ORGraphHandler.load(file);
+    }
+
+
 }
